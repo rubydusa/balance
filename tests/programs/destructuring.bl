@@ -1,0 +1,82 @@
+// Destructuring patterns and guards test
+
+type Point {
+    x: Int
+    y: Int
+}
+
+type Color {
+    r: Int
+    g: Int
+    b: Int
+}
+
+fn classify_point(p: Point) -> String {
+    match p {
+        Point { x, y } if x == 0 && y == 0 => {
+            return "origin"
+        }
+        Point { x, y } if x == y => {
+            return "diagonal"
+        }
+        Point { x } if x > 0 => {
+            return "right"
+        }
+        _ => {
+            return "other"
+        }
+    }
+}
+
+fn head_tail(items: List<Int>) -> String {
+    match items {
+        [head, ..rest] => {
+            return "head=" + head + " rest_len=" + rest.len()
+        }
+        [] => {
+            return "empty"
+        }
+        _ => {
+            return "unknown"
+        }
+    }
+}
+
+fn classify_number(n: Int) -> String {
+    match n {
+        0 => return "zero"
+        n if n > 0 => return "positive"
+        n if n < 0 => return "negative"
+        _ => return "unknown"
+    }
+}
+
+entry() {
+    // Struct destructuring
+    let origin = Point { x: 0, y: 0 }
+    let result1 = classify_point(origin)
+    let diag = Point { x: 5, y: 5 }
+    let result2 = classify_point(diag)
+    let right = Point { x: 3, y: 1 }
+    let result3 = classify_point(right)
+
+    // List destructuring
+    let items = [10, 20, 30]
+    let result4 = head_tail(items)
+    let empty = []
+    let result5 = head_tail(empty)
+
+    // Guards on literals/idents
+    let result6 = classify_number(0)
+    let result7 = classify_number(42)
+    let result8 = classify_number(-5)
+
+    // Nested struct pattern
+    let c = Color { r: 255, g: 0, b: 0 }
+    let result9 = match c {
+        Color { r, g, b } if r == 255 && g == 0 && b == 0 => "red"
+        _ => "other"
+    }
+
+    return result1 + " " + result2 + " " + result3 + " " + result4 + " " + result5 + " " + result6 + " " + result7 + " " + result8 + " " + result9
+}

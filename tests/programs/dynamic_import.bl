@@ -1,0 +1,9 @@
+// Test: Module imports using static import with selective names
+import helpers.math.{double, square, add}
+
+entry() {
+    let x = double(21)
+    let y = square(5)
+    let z = add(x, y)
+    z
+}

@@ -1,0 +1,41 @@
+substrate EventCounter {
+    state {
+        let mut count: Int = 0
+    }
+    on tick {
+        count = count + 1
+    }
+    op get_count() -> Int {
+        return count
+    }
+    op trigger_tick() -> Int {
+        emit tick {}
+        return count
+    }
+    emits { tick }
+}
+
+port Counting {
+    get_count() -> Int [command]
+    trigger_tick() -> Int [command]
+}
+
+service CountService provides Counting {
+    publish as "count/svc"
+    component counter = spawn EventCounter("count/main")
+    command get_count() -> Int {
+        return await counter.get_count()
+    }
+    command trigger_tick() -> Int {
+        return await counter.trigger_tick()
+    }
+}
+
+entry() {
+    let c = resolve Counting["count/svc"]
+    // Trigger a tick event — the on-clause should increment count
+    let r1 = await c.trigger_tick()
+    // After tick fires, on-clause runs, count should be 1
+    let r2 = await c.get_count()
+    return r2
+}

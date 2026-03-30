@@ -1,0 +1,42 @@
+// Test: Clock sleep and elapsed operations
+
+substrate Clock {
+    op now() -> Int
+    op sleep(ms: Int) -> Unit
+    op elapsed(start_ms: Int) -> Int
+    emits {
+        time_read
+        timer_fired
+    }
+}
+
+port TimerPort {
+    wait(ms: Int) -> Unit [command, visible(timer_fired)]
+    time() -> Int [query, visible(time_read)]
+    check_elapsed(start: Int) -> Int [query, visible(time_read)]
+}
+
+service TimerService provides TimerPort {
+    publish as "timer/svc"
+    component clock = spawn Clock("timer/clock")
+
+    command wait(ms: Int) -> Unit {
+        return await clock.sleep(ms)
+    }
+
+    query time() -> Int {
+        return await clock.now()
+    }
+
+    query check_elapsed(start: Int) -> Int {
+        return await clock.elapsed(start)
+    }
+}
+
+entry() {
+    let timer = resolve TimerPort["timer/svc"]
+    let start = await timer.time()
+    await timer.wait(50)
+    let elapsed = await timer.check_elapsed(start)
+    return elapsed
+}

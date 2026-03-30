@@ -1,0 +1,54 @@
+// Test: All guarantee law types
+
+substrate ReplicatedLog<T> {
+    op append(data: T) -> String
+    op read(offset: Int) -> T
+    emits {
+        append_accepted
+        quorum_committed
+    }
+}
+
+// Implication guarantee: accepted implies committed
+guarantee commit_requires_accept {
+    law: append_accepted(key) => quorum_committed(key)
+}
+
+// Ordering guarantee: validate must precede commit
+guarantee ordering_law {
+    law: append_accepted(key) must_precede quorum_committed(key)
+}
+
+// Time-bounded guarantee: accept to commit within 5 seconds
+guarantee bounded_law {
+    law: append_accepted(key) => quorum_committed(key) within 5000ms
+}
+
+// Absence guarantee: no corruption events
+guarantee absence_law {
+    law: NOT corruption(key)
+}
+
+port Log {
+    append(data: String) -> String [command]
+    read(offset: Int) -> String [query, visible(quorum_committed)]
+}
+
+service GuaranteedLog provides Log {
+    publish as "log/guaranteed"
+    component log = spawn ReplicatedLog("log/guaranteed")
+
+    command append(data: String) -> String
+        via log.append(data)
+        settle log.quorum_committed by ack.key
+
+    query read(offset: Int) -> String {
+        return "placeholder"
+    }
+}
+
+entry(out: cap Stdout @delegate) {
+    let log = resolve Log["log/guaranteed"]
+    let ack = await log.append("test data")
+    await out.writeln("guaranteed append: " + ack)
+}

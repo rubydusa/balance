@@ -1,0 +1,30 @@
+// Test: ViaSettle command with substrate-backed settlement
+// Exercises the interaction lifecycle through real substrate events
+
+substrate ReplicatedLog<T> {
+    op append(entry: T) -> String
+    op read(offset: Int) -> T
+    emits {
+        append_accepted
+        quorum_committed
+    }
+}
+
+port Log {
+    append(item: String) -> String [command]
+}
+
+service SimpleLog provides Log {
+    publish as "log/main"
+    component log = spawn ReplicatedLog("log/main")
+
+    command append(item: String) -> String
+        via log.append(item)
+        settle log.quorum_committed by ack.key
+}
+
+entry(out: cap Stdout @delegate) {
+    let log = resolve Log["log/main"]
+    let result = await log.append("greeting=hello")
+    await out.writeln("ViaSettle result: " + result)
+}

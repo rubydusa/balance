@@ -1,0 +1,17 @@
+// Test: Float methods and VM comparisons
+entry() {
+    let x = 3.14
+    let floored = x.floor()
+    let ceiled = x.ceil()
+    let rounded = x.round()
+    let root = 16.0.sqrt()
+    let absolute = -5.0.abs()
+    let as_int = 3.7.to_int()
+    let from_int = 42.to_float()
+    let lt = 1.0 < 2.0
+    let gt = 3.0 > 1.0
+    let lte = 2.0 <= 2.0
+    let gte = 3.0 >= 2.0
+    let s = 3.14.to_string()
+    return as_int
+}

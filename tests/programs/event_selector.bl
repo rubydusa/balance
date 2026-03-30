@@ -1,0 +1,23 @@
+// Event selector predicate (where clause) test
+
+port Echo {
+    echo(msg: String) -> String [query]
+}
+
+service FilteredEcho provides Echo {
+    publish as "echo/filtered"
+
+    // This on-clause only fires when event type matches AND where predicate is true
+    on some_event where event["key"] == "special" {
+        // Would execute some filtered logic
+    }
+
+    query echo(msg: String) -> String {
+        return "filtered: " + msg
+    }
+}
+
+entry() {
+    let e = resolve Echo["echo/filtered"]
+    return await e.echo("test")
+}

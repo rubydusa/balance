@@ -1,0 +1,12 @@
+// Test closures and higher-order functions
+entry() {
+    let add_one = |x| x + 1
+    let result = add_one(5)
+
+    // Closure capturing outer variable
+    let base = 10
+    let add_base = |x| x + base
+    let result2 = add_base(7)
+
+    result + result2
+}

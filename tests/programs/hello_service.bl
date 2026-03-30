@@ -1,0 +1,15 @@
+port Hello {
+    greet() -> String [query, visible(committed)]
+}
+
+service HelloWorld provides Hello {
+    publish as "hello/world"
+    query greet() -> String {
+        return "Hello, World!"
+    }
+}
+
+entry(out: cap Stdout @delegate) {
+    let h = resolve Hello["hello/world"]
+    await out.writeln(await h.greet())
+}

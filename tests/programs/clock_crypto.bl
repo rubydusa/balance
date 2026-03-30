@@ -1,0 +1,68 @@
+// Test: Clock and Crypto substrate operations used via query services
+
+substrate Clock {
+    op now() -> Int
+    op monotonic() -> Int
+    emits {
+        time_read
+    }
+}
+
+substrate Crypto {
+    op sha256(data: String) -> String
+    op hmac_sha256(data: String, key: String) -> String
+    emits {
+        crypto_op
+    }
+}
+
+port ClockPort {
+    get_time() -> Int [query, visible(time_read)]
+    get_counter() -> Int [query, visible(time_read)]
+}
+
+port CryptoPort {
+    hash(data: String) -> String [query, visible(crypto_op)]
+    hmac(data: String, key: String) -> String [query, visible(crypto_op)]
+}
+
+service ClockService provides ClockPort {
+    publish as "clock/svc"
+    component clock = spawn Clock("clock/main")
+
+    query get_time() -> Int {
+        return await clock.now()
+    }
+
+    query get_counter() -> Int {
+        return await clock.monotonic()
+    }
+}
+
+service CryptoService provides CryptoPort {
+    publish as "crypto/svc"
+    component crypto = spawn Crypto("crypto/main")
+
+    query hash(data: String) -> String {
+        return await crypto.sha256(data)
+    }
+
+    query hmac(data: String, key: String) -> String {
+        return await crypto.hmac_sha256(data, key)
+    }
+}
+
+entry(out: cap Stdout @delegate) {
+    let clock = resolve ClockPort["clock/svc"]
+    let ts = await clock.get_time()
+    let counter = await clock.get_counter()
+
+    let crypto = resolve CryptoPort["crypto/svc"]
+    let h = await crypto.hash("hello")
+    let hm = await crypto.hmac("data", "secret")
+
+    await out.writeln("clock: " + ts)
+    await out.writeln("counter: " + counter)
+    await out.writeln("sha256: " + h)
+    await out.writeln("hmac: " + hm)
+}

@@ -1,0 +1,13 @@
+// Helper module for import test
+
+export fn double(x: Int) -> Int {
+    x * 2
+}
+
+export fn square(x: Int) -> Int {
+    x * x
+}
+
+export fn add(a: Int, b: Int) -> Int {
+    a + b
+}

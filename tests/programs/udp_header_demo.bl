@@ -1,0 +1,23 @@
+// Demo: Construct and parse a UDP packet header in pure Balance
+entry() {
+    // Build a UDP header: src_port(2) + dst_port(2) + length(2) + checksum(2)
+    let src_port = 8080.to_bytes(2)
+    let dst_port = 443.to_bytes(2)
+    let payload = [72, 101, 108, 108, 111].to_bytes()
+    let length = (8 + payload.len()).to_bytes(2)
+    let checksum = 0.to_bytes(2)
+    let udp_header = src_port.concat(dst_port).concat(length).concat(checksum)
+    let packet = udp_header.concat(payload)
+
+    // Parse it back
+    let parsed_src = packet.slice(0, 2).to_int()
+    let parsed_dst = packet.slice(2, 4).to_int()
+    let parsed_len = packet.slice(4, 6).to_int()
+
+    // Verify
+    let ok = parsed_src == 8080
+    let ok2 = parsed_dst == 443
+    let ok3 = parsed_len == 13
+
+    return parsed_src
+}

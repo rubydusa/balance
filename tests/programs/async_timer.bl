@@ -1,0 +1,41 @@
+// Gap D: Async timer events — set_timer and check_timers on Clock
+
+substrate Clock {
+    op now() -> Int
+    op sleep(ms: Int) -> Unit
+    op elapsed(start_ms: Int) -> Int
+    op set_timer(ms: Int, tag: String) -> Unit
+    op check_timers() -> List
+    emits {
+        time_read
+        timer_fired
+    }
+}
+
+port Timing {
+    run_timer_test() -> Int [command, visible(timer_fired)]
+}
+
+service TimerService provides Timing {
+    publish as "timer/svc"
+    component clock = spawn Clock("timer/clock")
+
+    command run_timer_test() -> Int {
+        // Set a timer for 50ms with tag "test_timer"
+        await clock.set_timer(50, "test_timer")
+
+        // Sleep 100ms to ensure timer fires
+        await clock.sleep(100)
+
+        // Check for expired timers
+        let expired = await clock.check_timers()
+        return expired.len()
+    }
+}
+
+entry() {
+    let t = resolve Timing["timer/svc"]
+    let count = await t.run_timer_test()
+    // Should have 1 expired timer
+    return count
+}

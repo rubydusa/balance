@@ -1,0 +1,44 @@
+// Test: ViaObserve query with frontier-based observation semantics
+// Exercises the interaction lifecycle through substrate-backed observation
+
+substrate KeyValueStore<K, V> {
+    op put(key: K, value: V) -> String
+    op get(key: K) -> V
+    emits {
+        put_committed
+        entry_available
+    }
+}
+
+port Writer {
+    put(key: String, value: String) -> String [command]
+}
+
+port Reader {
+    get(key: String) -> String [query]
+}
+
+service KVWriter provides Writer {
+    publish as "kv/writer"
+    component store = spawn KeyValueStore("kv/data")
+    command put(key: String, value: String) -> String
+        via store.put(key, value)
+        settle store.put_committed by ack.key
+}
+
+service CachedReader provides Reader {
+    publish as "kv/reader"
+    component store = spawn KeyValueStore("kv/data")
+    query get(key: String) -> String
+        via store.get(key)
+        observe store.entry_available by res.frontier
+        return res.value
+}
+
+entry(out: cap Stdout @delegate) {
+    let w = resolve Writer["kv/writer"]
+    await w.put("mykey", "myvalue")
+    let r = resolve Reader["kv/reader"]
+    let result = await r.get("mykey")
+    await out.writeln("ViaObserve result: " + result)
+}

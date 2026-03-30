@@ -1,0 +1,26 @@
+// Test: Bytes construction and conversion methods
+entry() {
+    let p = 443
+    let p_bytes = p.to_bytes(2)
+    let back = p_bytes.to_int()
+
+    let header = [0x45, 0x00, 0x00, 0x28].to_bytes()
+
+    let src = 8080.to_bytes(2)
+    let dst = 443.to_bytes(2)
+    let tcp = src.concat(dst).concat(1.to_bytes(4))
+
+    let parsed_src = tcp.slice(0, 2).to_int()
+
+    // Verify roundtrip
+    let check1 = back == 443
+    let check2 = parsed_src == 8080
+    let check3 = header.len() == 4
+    let check4 = tcp.len() == 8
+
+    // Int.to_float / Int.to_string
+    let f = 42.to_float()
+    let s = 100.to_string()
+
+    return back
+}

@@ -1,0 +1,26 @@
+// Client program that connects to a remote KV service
+// Run with: balance run client_kv.bl --remote-service KV:kv/deployed:127.0.0.1:<port>
+
+substrate KeyValueStore<T> {
+    op put(key: String, value: T) -> String
+    op get(key: String) -> T
+    op delete(key: String) -> String
+    emits {
+        put_accepted
+        put_committed
+        entry_available
+        delete_committed
+    }
+}
+
+port KV {
+    put(key: String, value: String) -> String [command]
+    get(key: String) -> String? [query, visible(put_committed)]
+}
+
+entry(out: cap Stdout @delegate) {
+    let kv = resolve KV["kv/deployed"]
+    await kv.put("remote_key", "remote_value")
+    let val = await kv.get("remote_key")
+    await out.writeln("remote read: " + val)
+}

@@ -1,0 +1,36 @@
+substrate Clock {
+    op now() -> Int
+    op set_timer(ms: Int, tag: String) -> Unit
+    op check_timers() -> List
+    op sleep(ms: Int) -> Unit
+    emits { time_read timer_fired }
+}
+
+port SelectTest {
+    run_test() -> Int [command, visible(timer_fired)]
+}
+
+service SelectTestService provides SelectTest {
+    publish as "sel/svc"
+    component clock = spawn Clock("sel/clock")
+
+    command run_test() -> Int {
+        await clock.set_timer(10, "fast")
+        await clock.sleep(50)
+
+        let result = select 200 {
+            expired = await clock.check_timers() => {
+                return expired.len()
+            }
+            else => {
+                return 0
+            }
+        }
+        return result
+    }
+}
+
+entry() {
+    let s = resolve SelectTest["sel/svc"]
+    return await s.run_test()
+}

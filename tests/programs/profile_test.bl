@@ -1,0 +1,48 @@
+// Test: Profile-based resolution and dispatch preferences
+
+profile local_fast {
+    locality: "prefer_local"
+    timeout: "1000"
+    max_retries: "1"
+}
+
+profile reliable {
+    timeout: "10000"
+    max_retries: "5"
+}
+
+substrate KeyValueStore<T> {
+    op put(key: String, value: T) -> String
+    op get(key: String) -> T
+    op delete(key: String) -> String
+    emits {
+        put_accepted
+        put_committed
+        entry_available
+        delete_committed
+    }
+}
+
+port KV {
+    put(key: String, value: String) -> String [command]
+    get(key: String) -> String? [query, visible(put_committed)]
+}
+
+service ProfileKV provides KV {
+    publish as "kv/profile"
+    component store = spawn KeyValueStore("kv/profile_store")
+
+    command put(key: String, value: String) -> String
+        via store.put(key, value)
+        settle store.put_committed by ack.key
+
+    query get(key: String) -> String? {
+        return store.get(key)
+    }
+}
+
+entry(out: cap Stdout @delegate) {
+    let kv = resolve KV["kv/profile"] with profile local_fast
+    await kv.put("config", "value")
+    await out.writeln("profile-based resolution complete")
+}

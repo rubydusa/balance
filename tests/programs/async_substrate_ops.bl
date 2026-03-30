@@ -1,0 +1,53 @@
+// Async substrate ops: substrate that awaits a sibling substrate (Clock)
+
+substrate TimedCounter {
+    uses clock: Clock
+    state {
+        let mut count: Int = 0
+        let mut last_time: Int = 0
+    }
+    op increment() -> Int {
+        let t = await clock.now()
+        last_time = t
+        count = count + 1
+        return count
+    }
+    op get_count() -> Int {
+        return count
+    }
+    op get_time() -> Int {
+        return last_time
+    }
+    emits { incremented }
+}
+
+port TimedCounting {
+    increment() -> Int [command]
+    get_count() -> Int [command]
+    get_time() -> Int [command]
+}
+
+service TimedCountService provides TimedCounting {
+    publish as "tc/svc"
+    component counter = spawn TimedCounter("tc/counter")
+    component clk = spawn Clock("tc/clock")
+    command increment() -> Int {
+        return await counter.increment()
+    }
+    command get_count() -> Int {
+        return await counter.get_count()
+    }
+    command get_time() -> Int {
+        return await counter.get_time()
+    }
+}
+
+entry() {
+    let tc = resolve TimedCounting["tc/svc"]
+    let r1 = await tc.increment()
+    let r2 = await tc.increment()
+    let count = await tc.get_count()
+    let time = await tc.get_time()
+    // count should be 2, time should be > 0
+    return count
+}

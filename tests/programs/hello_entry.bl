@@ -1,0 +1,3 @@
+entry(out: cap Stdout @delegate) {
+    await out.writeln("Hello, World!")
+}

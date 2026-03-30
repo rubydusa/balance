@@ -1,0 +1,43 @@
+// Test: KeyValueStore substrate with put/get/delete operations
+
+substrate KeyValueStore<T> {
+    op put(key: String, value: T) -> String
+    op get(key: String) -> T
+    op delete(key: String) -> String
+    emits {
+        put_accepted
+        put_committed
+        entry_available
+        delete_committed
+    }
+}
+
+port KV {
+    put(key: String, value: String) -> String [command]
+    get(key: String) -> String? [query, visible(put_committed)]
+    delete(key: String) -> String [command]
+}
+
+service MainKV provides KV {
+    publish as "kv/main"
+    component store = spawn KeyValueStore("kv/store")
+
+    command put(key: String, value: String) -> String
+        via store.put(key, value)
+        settle store.put_committed by ack.key
+
+    query get(key: String) -> String? {
+        return none
+    }
+
+    command delete(key: String) -> String
+        via store.delete(key)
+        settle store.delete_committed by ack.key
+}
+
+entry(out: cap Stdout @delegate) {
+    let kv = resolve KV["kv/main"]
+    await kv.put("name", "Balance")
+    await kv.delete("name")
+    await out.writeln("KeyValueStore service operational")
+}

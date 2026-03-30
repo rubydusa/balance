@@ -1,0 +1,12 @@
+// Helper module exporting a port and service for cross-module import test
+
+export port Greeter {
+    greet(name: String) -> String [query]
+}
+
+export service GreeterService provides Greeter {
+    publish as "greeter/default"
+    query greet(name: String) -> String {
+        return "Hello, " + name + "!"
+    }
+}

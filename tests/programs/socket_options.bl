@@ -1,0 +1,31 @@
+// Gap E: Socket options — setsockopt on Socket substrate
+// Note: This test just verifies parsing and type-checking;
+// actual socket creation requires network access.
+
+port SocketTesting {
+    test_options() -> Int [command]
+}
+
+service SocketTest provides SocketTesting {
+    publish as "sock/test"
+    component sock = spawn Socket("sock/s1")
+
+    command test_options() -> Int {
+        // Create a TCP socket
+        let handle = await sock.create("tcp")
+
+        // Set socket options
+        await sock.setsockopt(handle, "SO_REUSEADDR", true)
+        await sock.setsockopt(handle, "TCP_NODELAY", true)
+        await sock.setsockopt(handle, "SO_RCVBUF", 65536)
+
+        await sock.close(handle)
+        return 1
+    }
+}
+
+entry() {
+    let s = resolve SocketTesting["sock/test"]
+    let result = await s.test_options()
+    return result
+}

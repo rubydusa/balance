@@ -1,0 +1,9 @@
+// Test: Named entry selection with --entry flag
+
+entry server(out: cap Stdout @delegate) {
+    await out.writeln("server mode")
+}
+
+entry client(out: cap Stdout @delegate) {
+    await out.writeln("client mode")
+}

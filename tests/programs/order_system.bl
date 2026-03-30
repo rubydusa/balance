@@ -1,0 +1,237 @@
+// Distributed Order Processing System
+// Demonstrates how Balance eliminates distributed systems boilerplate
+//
+// In a traditional stack (Go/Java/Python + Kafka + Redis + Postgres),
+// building this pipeline requires manual Kafka setup, hand-written retry
+// logic, ad-hoc consistency reasoning, and no formal guarantees.
+//
+// In Balance: substrates handle durability, settlement makes consistency
+// explicit, guarantee laws are checked at runtime, service composition
+// is network-transparent, and replication is a one-line annotation.
+
+// ─── Substrates ──────────────────────────────────────────────
+// Durable building blocks — Balance manages events, persistence,
+// and replication automatically
+
+substrate ReplicatedLog<T> {
+    op append(data: T) -> String
+    op read(offset: Int) -> T
+    emits {
+        append_accepted
+        quorum_committed
+        append_reverted
+    }
+}
+
+substrate KeyValueStore<T> {
+    op put(key: String, value: T) -> String
+    op get(key: String) -> T
+    op delete(key: String) -> String
+    emits {
+        put_accepted
+        put_committed
+        entry_available
+        delete_committed
+        put_reverted
+        delete_reverted
+    }
+}
+
+substrate Clock {
+    op now() -> Int
+    op monotonic() -> Int
+    emits { time_read }
+}
+
+substrate Crypto {
+    op sha256(data: String) -> String
+    op hmac_sha256(data: String, key: String) -> String
+    emits { crypto_op }
+}
+
+// ─── Guarantees ──────────────────────────────────────────────
+// Formal laws the runtime enforces — no equivalent in Go/Java
+
+guarantee order_committed {
+    law: append_accepted(key) => quorum_committed(key)
+}
+
+guarantee commit_ordering {
+    law: append_accepted(key) must_precede quorum_committed(key)
+}
+
+guarantee timely_commit {
+    law: append_accepted(key) => quorum_committed(key) within 5000ms
+}
+
+guarantee no_phantom_orders {
+    law: NOT phantom_order(key)
+}
+
+guarantee no_negative_balance {
+    law: NOT put_accepted(key, value<0)
+}
+
+// ─── Profiles ────────────────────────────────────────────────
+// Resolution preferences — one line replaces pages of config
+
+profile local_fast {
+    locality: "prefer_local"
+    timeout: "1000"
+    max_retries: "1"
+}
+
+profile reliable {
+    timeout: "10000"
+    max_retries: "5"
+}
+
+// ─── Ports (Interfaces) ─────────────────────────────────────
+// command = writes (must settle), query = reads (may observe)
+
+port Inventory {
+    reserve(item: String, qty: Int) -> String [command]
+    check_stock(item: String) -> Int [query, visible(put_committed)]
+}
+
+port OrderLedger {
+    place_order(order: String) -> String [command]
+    get_order(offset: Int) -> String [query, visible(quorum_committed)]
+}
+
+port Payments {
+    deposit(account: String, amount: Int) -> String [command]
+    charge(account: String, amount: Int) -> String [command]
+    balance(account: String) -> Int [query, visible(put_committed)]
+}
+
+port TimeService {
+    timestamp() -> Int [query, visible(time_read)]
+}
+
+port ReceiptService {
+    issue(data: String) -> String [query, visible(crypto_op)]
+}
+
+// ─── Service Implementations ────────────────────────────────
+
+service InventoryManager provides Inventory {
+    publish as "inventory/main"
+    component store = spawn KeyValueStore("inventory/stock")
+
+    command reserve(item: String, qty: Int) -> String
+        via store.put(item, qty)
+        settle store.put_committed by ack.key
+
+    query check_stock(item: String) -> Int {
+        return store.get(item)
+    }
+}
+
+// Replicated for durability — just add `on replicated(3)`
+service OrderLog provides OrderLedger {
+    publish as "orders/log"
+    on replicated(3)
+    component log = spawn ReplicatedLog("orders/ledger")
+
+    command place_order(order: String) -> String
+        via log.append(order)
+        settle log.quorum_committed by ack.key
+
+    query get_order(offset: Int) -> String {
+        return "placeholder"
+    }
+}
+
+service PaymentProcessor provides Payments {
+    publish as "payments/main"
+    component ledger = spawn KeyValueStore("payments/accounts")
+
+    command deposit(account: String, amount: Int) -> String
+        via ledger.put(account, amount)
+        settle ledger.put_committed by ack.key
+
+    command charge(account: String, amount: Int) -> String {
+        let current = await ledger.get(account)
+        let new_balance = current - amount
+        return await ledger.put(account, new_balance)
+    }
+
+    query balance(account: String) -> Int {
+        return ledger.get(account)
+    }
+}
+
+service TimestampService provides TimeService {
+    publish as "time/main"
+    component clock = spawn Clock("time/clock")
+
+    query timestamp() -> Int {
+        return await clock.now()
+    }
+}
+
+service ReceiptGenerator provides ReceiptService {
+    publish as "receipt/main"
+    component crypto = spawn Crypto("receipt/crypto")
+
+    query issue(data: String) -> String {
+        return await crypto.sha256(data)
+    }
+}
+
+// ─── Entry Point: Process an Order ──────────────────────────
+// This is where Balance shines — composing distributed services
+// feels like writing a local function.
+// The entry body is implicitly atomic: if any operation fails,
+// previously settled writes are automatically compensated.
+
+entry(out: cap Stdout @delegate) {
+    // Resolve capabilities — network-transparent, profile-aware
+    let inv = resolve Inventory["inventory/main"] with profile local_fast
+    let orders = resolve OrderLedger["orders/log"] with profile reliable
+    let pay = resolve Payments["payments/main"] with profile reliable
+    let time = resolve TimeService["time/main"]
+    let receipts = resolve ReceiptService["receipt/main"]
+
+    await concurrent {
+        // Seed inventory
+        inv.reserve("widget-a", 100)
+        inv.reserve("widget-b", 50)
+
+        // Seed account balance
+        pay.deposit("acct-alice", 1000)
+    }
+
+    // ── Check stock and balance concurrently ────────────────
+    // In Go: two goroutines + WaitGroup + error channels
+    // In Balance: one keyword
+    let checks = concurrent {
+        inv.check_stock("widget-a")
+        pay.balance("acct-alice")
+    }
+
+    let stock = checks[0]
+    let bal = checks[1]
+    await out.writeln("stock: " + stock + ", balance: " + bal)
+
+    // ── Place the order ─────────────────────────────────────
+    // Settlement is automatic — `await` returns only after
+    // quorum_committed fires (3-replica consensus)
+    let ts = await time.timestamp()
+    let order_data = "widget-a:5:acct-alice:" + ts
+    let order_ack = await orders.place_order(order_data)
+    await out.writeln("order placed: " + order_ack)
+
+    // ── Charge payment ──────────────────────────────────────
+    await pay.charge("acct-alice", 500)
+
+    // ── Update inventory ────────────────────────────────────
+    await inv.reserve("widget-a", 95)
+
+    // ── Generate receipt ────────────────────────────────────
+    let receipt = await receipts.issue(order_ack + ":" + ts)
+    await out.writeln("receipt: " + receipt)
+
+    await out.writeln("order processing complete")
+}

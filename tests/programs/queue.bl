@@ -1,0 +1,31 @@
+// Test: Queue substrate with enqueue/dequeue operations
+
+substrate Queue<T> {
+    op enqueue(value: T) -> String
+    op dequeue() -> T
+    op peek() -> T
+    emits {
+        enqueue_accepted
+        enqueue_committed
+        dequeue_available
+    }
+}
+
+port TaskQueue {
+    submit(task: String) -> String [command]
+}
+
+service MainQueue provides TaskQueue {
+    publish as "queue/main"
+    component q = spawn Queue("queue/main")
+
+    command submit(task: String) -> String
+        via q.enqueue(task)
+        settle q.enqueue_committed by ack.key
+}
+
+entry(out: cap Stdout @delegate) {
+    let queue = resolve TaskQueue["queue/main"]
+    await queue.submit("process-data")
+    await out.writeln("Queue service operational")
+}

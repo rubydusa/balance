@@ -1,0 +1,51 @@
+substrate Calculator {
+    state {
+        let mut history: List = []
+    }
+    fn square(x: Int) -> Int {
+        return x * x
+    }
+    fn sum_list(items: List) -> Int {
+        let mut total = 0
+        let mut i = 0
+        while i < items.len() {
+            total = total + items[i]
+            i = i + 1
+        }
+        return total
+    }
+    op compute(x: Int) -> Int {
+        let sq = square(x)
+        history = history.push(sq)
+        return sq
+    }
+    op total() -> Int {
+        return sum_list(history)
+    }
+    emits { computed }
+}
+
+port Calculating {
+    compute(x: Int) -> Int [command]
+    total() -> Int [command]
+}
+
+service CalcService provides Calculating {
+    publish as "calc/svc"
+    component calc = spawn Calculator("calc/main")
+    command compute(x: Int) -> Int {
+        return await calc.compute(x)
+    }
+    command total() -> Int {
+        return await calc.total()
+    }
+}
+
+entry() {
+    let c = resolve Calculating["calc/svc"]
+    let r1 = await c.compute(3)
+    let r2 = await c.compute(4)
+    let t = await c.total()
+    // r1=9, r2=16, t=25
+    return t
+}

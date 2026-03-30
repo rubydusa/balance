@@ -1,0 +1,27 @@
+// Gap A: Result type with Ok/Err pattern matching and ? operator
+
+fn divide(a: Int, b: Int) -> Result {
+    match b {
+        0 => return err("division by zero")
+        _ => return ok(a / b)
+    }
+}
+
+entry() {
+    let r = divide(10, 2)
+    let val = match r {
+        Ok(v) => v
+        Err(e) => 0
+    }
+
+    let r2 = divide(10, 0)
+    let is_err = r2.is_err()
+    let safe = r2.unwrap_or(0)
+
+    let r3 = divide(20, 4)
+    let is_ok = r3.is_ok()
+    let unwrapped = r3.unwrap()
+
+    // val=5, is_err=true, safe=0, is_ok=true, unwrapped=5
+    return val + safe + unwrapped
+}

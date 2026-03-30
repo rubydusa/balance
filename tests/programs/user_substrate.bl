@@ -1,0 +1,41 @@
+// Phase 4: User-defined substrate implementation test
+
+substrate Counter {
+    op increment(amount: Int) -> Int
+    op get_count() -> Int
+    emits { count_incremented }
+
+    state {
+        let mut count: Int = 0
+    }
+
+    op increment(amount: Int) -> Int {
+        count = count + amount
+        emit count_incremented { count: count, amount: amount }
+        return count
+    }
+
+    op get_count() -> Int {
+        return count
+    }
+}
+
+port Counting {
+    increment(amount: Int) -> Int [command]
+}
+
+service CountService provides Counting {
+    publish as "counter/main"
+    component ctr = spawn Counter("counter/store")
+
+    command increment(amount: Int) -> Int {
+        return await ctr.increment(amount)
+    }
+}
+
+entry() {
+    let c = resolve Counting["counter/main"]
+    let r1 = await c.increment(5)
+    let r2 = await c.increment(3)
+    return r2
+}

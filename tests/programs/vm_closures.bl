@@ -1,0 +1,30 @@
+// Test: VM-compatible closure program (no service interactions)
+// Run with: balance run --vm vm_closures.bl
+
+entry() {
+    // Basic closure
+    let double = |x| x * 2
+    let r1 = double(21)
+
+    // Closure with capture
+    let offset = 100
+    let add_offset = |x| x + offset
+    let r2 = add_offset(5)
+
+    // Multi-param closure
+    let add = |a, b| a + b
+    let r3 = add(10, 20)
+
+    // Nested closure call
+    let triple = |x| x * 3
+    let r4 = triple(4)
+
+    // Closure capturing multiple values
+    let a = 1
+    let b = 2
+    let c = 3
+    let sum_all = |x| x + a + b + c
+    let r5 = sum_all(0)
+
+    r1 + r2 + r3 + r4 + r5
+}

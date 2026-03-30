@@ -1,0 +1,34 @@
+// Test: KV service with substrate-backed settlement
+
+substrate ReplicatedLog<T> {
+    op append(entry: T) -> String
+    op read(offset: Int) -> T
+    emits {
+        append_accepted
+        quorum_committed
+    }
+}
+
+port KV {
+    get(key: String) -> String? [query, visible(quorum_committed)]
+    put(key: String, value: String) -> String [command]
+}
+
+service MainKV provides KV {
+    publish as "kv/main"
+    component log = spawn ReplicatedLog("kv/log")
+
+    command put(key: String, value: String) -> String
+        via log.append(key + "=" + value)
+        settle log.quorum_committed by ack.key
+
+    query get(key: String) -> String? {
+        return none
+    }
+}
+
+entry(out: cap Stdout @delegate) {
+    let kv = resolve KV["kv/main"]
+    await kv.put("greeting", "hello")
+    await out.writeln("KV service operational")
+}

@@ -1,0 +1,44 @@
+// Test: Multi-service chain — A -> B -> C
+
+port PortA {
+    process_a(data: String) -> String [query]
+}
+
+port PortB {
+    process_b(data: String) -> String [query]
+}
+
+port PortC {
+    process_c(data: String) -> String [query]
+}
+
+service ServiceA provides PortA {
+    publish as "svc/a"
+    query process_a(data: String) -> String {
+        return "A(" + data + ")"
+    }
+}
+
+service ServiceB provides PortB {
+    publish as "svc/b"
+    query process_b(data: String) -> String {
+        let a = resolve PortA["svc/a"]
+        let result = await a.process_a(data)
+        return "B(" + result + ")"
+    }
+}
+
+service ServiceC provides PortC {
+    publish as "svc/c"
+    query process_c(data: String) -> String {
+        let b = resolve PortB["svc/b"]
+        let result = await b.process_b(data)
+        return "C(" + result + ")"
+    }
+}
+
+entry(out: cap Stdout @delegate) {
+    let c = resolve PortC["svc/c"]
+    let result = await c.process_c("hello")
+    await out.writeln(result)
+}

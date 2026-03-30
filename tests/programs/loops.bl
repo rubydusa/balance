@@ -1,0 +1,35 @@
+// Test for/while loops, break/continue
+fn sum_list(items: List<Int>) -> Int {
+    let result = 0
+    for item in items {
+        let result = result + item
+    }
+    result
+}
+
+entry() {
+    // Basic for loop
+    let items = [1, 2, 3, 4, 5]
+    for item in items {
+        item
+    }
+
+    // while loop with break
+    let x = 0
+    while true {
+        let x = x + 1
+        if x == 3 {
+            break
+        }
+    }
+
+    // for loop with continue
+    for n in [1, 2, 3, 4, 5] {
+        if n == 3 {
+            continue
+        }
+        n
+    }
+
+    items
+}

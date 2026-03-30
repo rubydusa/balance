@@ -1,0 +1,44 @@
+// Test: Full pipeline — substrate emits events, guarantee verified, settlement confirmed
+//
+// The ReplicatedLog substrate emits append_accepted and quorum_committed events.
+// The guarantee declares that append_accepted(key) => quorum_committed(key) must hold.
+// The evaluator verifies this after settlement.
+
+substrate ReplicatedLog<T> {
+    op append(data: T) -> String
+    op read(offset: Int) -> T
+    emits {
+        append_accepted
+        quorum_committed
+    }
+}
+
+guarantee commit_requires_accept {
+    law: append_accepted(key) => quorum_committed(key)
+}
+
+port Log {
+    append(data: String) -> String [command]
+    read(offset: Int) -> String [query, visible(quorum_committed)]
+}
+
+service DurableLog provides Log {
+    publish as "log/durable"
+    component log = spawn ReplicatedLog("log/durable")
+
+    command append(data: String) -> String
+        via log.append(data)
+        settle log.quorum_committed by ack.key
+
+    query read(offset: Int) -> String {
+        return "placeholder"
+    }
+}
+
+entry(out: cap Stdout @delegate) {
+    let log = resolve Log["log/durable"]
+    let ack = await log.append("first item")
+    await out.writeln("Guarantee test: " + ack)
+    let ack2 = await log.append("second item")
+    await out.writeln("Second append: " + ack2)
+}

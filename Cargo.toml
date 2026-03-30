@@ -1,0 +1,3 @@
+[workspace]
+members = ["crates/balance-lang", "crates/balance-cli"]
+resolver = "2"

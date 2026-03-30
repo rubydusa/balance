@@ -1,0 +1,32 @@
+// Test: Service body resolves and calls another service
+// This exercises the full evaluator being available inside service bodies
+
+port Formatter {
+    format(name: String) -> String [query]
+}
+
+port Greeter {
+    greet(name: String) -> String [query]
+}
+
+service UpperFormatter provides Formatter {
+    publish as "fmt/upper"
+    query format(name: String) -> String {
+        return "[" + name + "]"
+    }
+}
+
+service FriendlyGreeter provides Greeter {
+    publish as "greeter/friendly"
+    query greet(name: String) -> String {
+        // This service body resolves another capability and calls it
+        let fmt = resolve Formatter["fmt/upper"]
+        let formatted = await fmt.format(name)
+        return "Hello, " + formatted + "!"
+    }
+}
+
+entry(out: cap Stdout @delegate) {
+    let g = resolve Greeter["greeter/friendly"]
+    await out.writeln(await g.greet("World"))
+}

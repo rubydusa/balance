@@ -1,0 +1,14 @@
+// Test macro definition and expansion
+macro double(x: Expr) {
+    x + x
+}
+
+macro greet(name: Expr) {
+    "Hello, " + name
+}
+
+entry() {
+    let result = double!(5)
+    let msg = greet!("World")
+    result
+}

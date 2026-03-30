@@ -1,0 +1,18 @@
+// Negative test: This program should FAIL type checking.
+// Command with block body (no ViaSettle) is a type error.
+// Query with block body and no visible() is a type error.
+
+port BadPort {
+    do_stuff() -> String [command]
+    read_stuff() -> String [query]
+}
+
+service BadService provides BadPort {
+    publish as "bad/main"
+    command do_stuff() -> String {
+        return "oops"
+    }
+    query read_stuff() -> String {
+        return "also oops"
+    }
+}

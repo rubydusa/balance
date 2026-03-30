@@ -1,0 +1,31 @@
+// Deployable KV service for multi-node integration test
+
+substrate KeyValueStore<T> {
+    op put(key: String, value: T) -> String
+    op get(key: String) -> T
+    op delete(key: String) -> String
+    emits {
+        put_accepted
+        put_committed
+        entry_available
+        delete_committed
+    }
+}
+
+port KV {
+    put(key: String, value: String) -> String [command]
+    get(key: String) -> String? [query, visible(put_committed)]
+}
+
+service DeployableKV provides KV {
+    publish as "kv/deployed"
+    component store = spawn KeyValueStore("kv/deployed_store")
+
+    command put(key: String, value: String) -> String
+        via store.put(key, value)
+        settle store.put_committed by ack.key
+
+    query get(key: String) -> String? {
+        return await store.get(key)
+    }
+}

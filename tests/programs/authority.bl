@@ -1,0 +1,30 @@
+// Test: Authority qualifier enforcement (@consume, @borrow, @delegate)
+
+port Greeter {
+    greet(name: String) -> String [query]
+}
+
+service SimpleGreeter provides Greeter {
+    publish as "greeter/simple"
+    query greet(name: String) -> String {
+        return "Hello, " + name
+    }
+}
+
+// @consume capability: can be used exactly once, then it is consumed
+entry consume_test(out: cap Stdout @delegate, g: cap Greeter @consume) {
+    let msg = await g.greet("consume-user")
+    await out.writeln(msg)
+}
+
+// @borrow capability: can be used, but cannot be captured in a closure
+entry borrow_test(out: cap Stdout @delegate, g: cap Greeter @borrow) {
+    let msg = await g.greet("borrow-user")
+    await out.writeln(msg)
+}
+
+// @delegate capability: can be passed across service boundaries
+entry delegate_test(out: cap Stdout @delegate, g: cap Greeter @delegate) {
+    let msg = await g.greet("delegate-user")
+    await out.writeln(msg)
+}

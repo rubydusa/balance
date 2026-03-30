@@ -1,0 +1,102 @@
+// Test: Extended crypto operations (AES-GCM, HKDF, random_bytes, Ed25519)
+
+substrate Crypto {
+    op sha256_bytes(data: Bytes) -> Bytes
+    op hmac_sha256_bytes(data: Bytes, key: Bytes) -> Bytes
+    op aes_gcm_encrypt(key: Bytes, nonce: Bytes, plaintext: Bytes, aad: Bytes) -> Bytes
+    op aes_gcm_decrypt(key: Bytes, nonce: Bytes, ciphertext: Bytes, aad: Bytes) -> Bytes
+    op hkdf_extract(salt: Bytes, ikm: Bytes) -> Bytes
+    op hkdf_expand(prk: Bytes, info: Bytes, length: Int) -> Bytes
+    op random_bytes(length: Int) -> Bytes
+    op ed25519_keypair() -> KeyPair
+    op ed25519_sign(secret: Bytes, message: Bytes) -> Bytes
+    op ed25519_verify(public_key: Bytes, message: Bytes, signature: Bytes) -> Bool
+    emits { crypto_op }
+}
+
+type KeyPair {
+    public: Bytes
+    secret: Bytes
+}
+
+port CryptoPort {
+    encrypt(key: Bytes, nonce: Bytes, plaintext: Bytes, aad: Bytes) -> Bytes [command, visible(crypto_op)]
+    decrypt(key: Bytes, nonce: Bytes, ciphertext: Bytes, aad: Bytes) -> Bytes [command, visible(crypto_op)]
+    derive_key(salt: Bytes, ikm: Bytes, info: Bytes, length: Int) -> Bytes [command, visible(crypto_op)]
+    rand(length: Int) -> Bytes [command, visible(crypto_op)]
+    sign_keypair() -> KeyPair [command, visible(crypto_op)]
+    sign(secret: Bytes, message: Bytes) -> Bytes [command, visible(crypto_op)]
+    verify(public_key: Bytes, message: Bytes, signature: Bytes) -> Bool [query, visible(crypto_op)]
+    hash_bytes(data: Bytes) -> Bytes [query, visible(crypto_op)]
+}
+
+service CryptoService provides CryptoPort {
+    publish as "crypto/ext"
+    component crypto = spawn Crypto("crypto/ext/main")
+
+    command encrypt(key: Bytes, nonce: Bytes, plaintext: Bytes, aad: Bytes) -> Bytes {
+        return await crypto.aes_gcm_encrypt(key, nonce, plaintext, aad)
+    }
+
+    command decrypt(key: Bytes, nonce: Bytes, ciphertext: Bytes, aad: Bytes) -> Bytes {
+        return await crypto.aes_gcm_decrypt(key, nonce, ciphertext, aad)
+    }
+
+    command derive_key(salt: Bytes, ikm: Bytes, info: Bytes, length: Int) -> Bytes {
+        let prk = await crypto.hkdf_extract(salt, ikm)
+        return await crypto.hkdf_expand(prk, info, length)
+    }
+
+    command rand(length: Int) -> Bytes {
+        return await crypto.random_bytes(length)
+    }
+
+    command sign_keypair() -> KeyPair {
+        return await crypto.ed25519_keypair()
+    }
+
+    command sign(secret: Bytes, message: Bytes) -> Bytes {
+        return await crypto.ed25519_sign(secret, message)
+    }
+
+    query verify(public_key: Bytes, message: Bytes, signature: Bytes) -> Bool {
+        return await crypto.ed25519_verify(public_key, message, signature)
+    }
+
+    query hash_bytes(data: Bytes) -> Bytes {
+        return await crypto.sha256_bytes(data)
+    }
+}
+
+entry() {
+    let c = resolve CryptoPort["crypto/ext"]
+
+    // Test random bytes generation
+    let key = await c.rand(32)
+    let nonce = await c.rand(12)
+
+    // Test AES-GCM encrypt/decrypt roundtrip
+    let msg = [72, 101, 108, 108, 111].to_bytes()
+    let aad = [].to_bytes()
+    let encrypted = await c.encrypt(key, nonce, msg, aad)
+    let decrypted = await c.decrypt(key, nonce, encrypted, aad)
+
+    // Verify roundtrip
+    let match_ok = decrypted == msg
+
+    // Test HKDF key derivation
+    let salt = [0, 0, 0, 0].to_bytes()
+    let ikm = key
+    let info = [1].to_bytes()
+    let derived = await c.derive_key(salt, ikm, info, 32)
+
+    // Test Ed25519 sign/verify
+    let kp = await c.sign_keypair()
+    let signature = await c.sign(kp.secret, msg)
+    let valid = await c.verify(kp.public, msg, signature)
+
+    // Test sha256_bytes
+    let hash = await c.hash_bytes(msg)
+
+    return valid
+}

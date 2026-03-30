@@ -1,0 +1,168 @@
+// Comprehensive test for collections: index expressions, modulo,
+// string methods, list methods, and map methods (Phases 13-14)
+entry(out: cap Stdout @delegate) {
+    // ── Index expressions ──────────────────────────────────
+    let nums = [10, 20, 30, 40, 50]
+    let first = nums[0]
+    let last  = nums[4]
+    await out.writeln("list index: " + first + ", " + last)
+
+    let data = { "lang": "Balance", "ver": "0.1" }
+    let lang = data["lang"]
+    await out.writeln("map index: " + lang)
+
+    let greeting = "Hello"
+    let ch = greeting[1]
+    await out.writeln("string index: " + ch)
+
+    let nested = [[1, 2], [3, 4]]
+    let deep = nested[1][0]
+    await out.writeln("nested index: " + deep)
+
+    // ── Modulo operator ────────────────────────────────────
+    let mod1 = 10 % 3
+    let mod2 = 7 % 2
+    let mod3 = 100 % 10
+    await out.writeln("modulo: " + mod1 + ", " + mod2 + ", " + mod3)
+
+    // ── String methods ─────────────────────────────────────
+    let s = "  Hello, World!  "
+    let trimmed = s.trim()
+    await out.writeln("trim: [" + trimmed + "]")
+
+    let upper = trimmed.to_upper()
+    let lower = trimmed.to_lower()
+    await out.writeln("case: " + upper + " / " + lower)
+
+    let parts = "a,b,c,d".split(",")
+    await out.writeln("split: " + parts)
+
+    let sw = "Balance".starts_with("Bal")
+    let ew = "Balance".ends_with("nce")
+    await out.writeln("starts/ends: " + sw + ", " + ew)
+
+    let replaced = "foo bar foo".replace("foo", "baz")
+    await out.writeln("replace: " + replaced)
+
+    let sub = "abcdef".substring(1, 4)
+    await out.writeln("substring: " + sub)
+
+    let chars = "Hi!".chars()
+    await out.writeln("chars: " + chars)
+
+    let idx = "hello world".index_of("world")
+    let missing = "hello".index_of("xyz")
+    await out.writeln("index_of: " + idx + ", " + missing)
+
+    let slen = "Balance".len()
+    await out.writeln("string len: " + slen)
+
+    let has = "Balance".contains("lan")
+    let nope = "Balance".contains("xyz")
+    await out.writeln("string contains: " + has + ", " + nope)
+
+    // ── List methods ───────────────────────────────────────
+    let items = [1, 2, 3, 4, 5]
+
+    let llen = items.len()
+    await out.writeln("list len: " + llen)
+
+    let got = items.get(2)
+    await out.writeln("list get: " + got)
+
+    let fst = items.first()
+    let lst = items.last()
+    await out.writeln("first/last: " + fst + ", " + lst)
+
+    let rev = items.reverse()
+    await out.writeln("reverse: " + rev)
+
+    let pushed = items.push(6)
+    await out.writeln("push: " + pushed)
+
+    let joined = [1, 2, 3].concat([4, 5])
+    await out.writeln("concat: " + joined)
+
+    let csv = ["a", "b", "c"].join(", ")
+    await out.writeln("join: " + csv)
+
+    let lhas = items.contains(3)
+    let lnope = items.contains(99)
+    await out.writeln("list contains: " + lhas + ", " + lnope)
+
+    // Higher-order list methods
+    let doubled = items.map(|x| x * 2)
+    await out.writeln("map: " + doubled)
+
+    let evens = items.filter(|x| x % 2 == 0)
+    await out.writeln("filter: " + evens)
+
+    let total = items.fold(0, |acc, x| acc + x)
+    await out.writeln("fold sum: " + total)
+
+    let product = [1, 2, 3, 4].fold(1, |acc, x| acc * x)
+    await out.writeln("fold product: " + product)
+
+    // Empty list edge cases
+    let empty = []
+    let efst = empty.first()
+    let elst = empty.last()
+    await out.writeln("empty first/last: " + efst + ", " + elst)
+
+    // ── Map methods ────────────────────────────────────────
+    let m = { "a": 1, "b": 2, "c": 3 }
+
+    let mlen = m.len()
+    await out.writeln("map len: " + mlen)
+
+    let keys = m.keys()
+    await out.writeln("keys: " + keys)
+
+    let vals = m.values()
+    await out.writeln("values: " + vals)
+
+    let entries = m.entries()
+    await out.writeln("entries count: " + entries.len())
+
+    let hk = m.contains_key("b")
+    let nk = m.contains_key("z")
+    await out.writeln("contains_key: " + hk + ", " + nk)
+
+    let gv = m.get("a")
+    let gm = m.get("missing")
+    await out.writeln("map get: " + gv + ", " + gm)
+
+    let inserted = m.insert("d", 4)
+    await out.writeln("insert len: " + inserted.len())
+
+    let removed = m.remove("b")
+    await out.writeln("remove len: " + removed.len())
+
+    // ── Combined usage ─────────────────────────────────────
+    // Chain: split, map uppercase, join
+    let words = "the quick brown fox".split(" ")
+    let uppers = words.map(|w| w.to_upper())
+    let chained = uppers.join(" ")
+    await out.writeln("chained: " + chained)
+
+    // Filter with comparison in closure body
+    let long_words = uppers.filter(|w| {
+        let wlen = w.len()
+        wlen > 3
+    })
+    await out.writeln("long words: " + long_words.join(" "))
+
+    // Modulo in filter
+    let odds = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].filter(|n| {
+        let rem = n % 2
+        rem == 1
+    })
+    await out.writeln("odds: " + odds)
+
+    // Index into mapped result
+    let squares = [1, 2, 3, 4].map(|x| x * x)
+    let third_sq = squares[2]
+    await out.writeln("third square: " + third_sq)
+
+    "collections ok"
+}

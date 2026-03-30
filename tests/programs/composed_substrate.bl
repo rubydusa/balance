@@ -1,0 +1,52 @@
+// Gap C: Substrate composition — user-defined substrate with deps
+
+substrate KeyValueStore<T> {
+    op put(key: String, value: T) -> String
+    op get(key: String) -> T
+    emits { put_accepted put_committed entry_available }
+}
+
+substrate Accumulator {
+    uses kv: KeyValueStore
+    state {
+        let mut total: Int = 0
+    }
+    op add(amount: Int) -> Int {
+        total = total + amount
+        kv.put("total", total)
+        return total
+    }
+    op get_total() -> Int {
+        return total
+    }
+    emits { accumulator_op }
+}
+
+port Accumulating {
+    add(amount: Int) -> Int [command]
+    get_total() -> Int [command]
+}
+
+service AccumulatorService provides Accumulating {
+    publish as "acc/main"
+    component store = spawn KeyValueStore("acc/store")
+    component acc = spawn Accumulator("acc/acc")
+
+    command add(amount: Int) -> Int {
+        return await acc.add(amount)
+    }
+
+    command get_total() -> Int {
+        return await acc.get_total()
+    }
+}
+
+entry() {
+    let a = resolve Accumulating["acc/main"]
+    let r1 = await a.add(10)
+    let r2 = await a.add(20)
+    let r3 = await a.add(5)
+    let total = await a.get_total()
+    // r1=10, r2=30, r3=35, total=35
+    return total
+}
