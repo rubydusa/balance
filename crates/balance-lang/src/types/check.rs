@@ -1,16 +1,19 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::ast::*;
+use crate::lexer::span::Span;
 use super::infer;
 
 #[derive(Debug)]
 pub struct TypeCheckError {
     pub message: String,
+    pub span: Option<Span>,
 }
 
 #[derive(Debug)]
 pub struct TypeWarning {
     pub message: String,
+    pub span: Option<Span>,
 }
 
 pub struct TypeCheckResult {
@@ -94,10 +97,11 @@ pub fn check_program(program: &Program) -> TypeCheckResult {
     for ie in infer_result.errors {
         errors.push(TypeCheckError {
             message: ie.message,
+            span: ie.span,
         });
     }
     for w in infer_result.warnings {
-        warnings.push(TypeWarning { message: w });
+        warnings.push(TypeWarning { message: w, span: None });
     }
 
     TypeCheckResult { errors, warnings }
@@ -169,10 +173,11 @@ pub fn check_program_with_root(program: &Program, module_root: std::path::PathBu
     for ie in infer_result.errors {
         errors.push(TypeCheckError {
             message: ie.message,
+            span: ie.span,
         });
     }
     for w in infer_result.warnings {
-        warnings.push(TypeWarning { message: w });
+        warnings.push(TypeWarning { message: w, span: None });
     }
 
     TypeCheckResult { errors, warnings }
@@ -370,6 +375,7 @@ fn check_port(port: &PortDecl, warnings: &mut Vec<TypeWarning>) {
                     "port method '{}' in '{}' has no [command] or [query] annotation",
                     method.node.name, port.name
                 ),
+                span: Some(method.span),
             });
         }
     }
@@ -388,6 +394,7 @@ fn check_service(
     if !has_publish {
         warnings.push(TypeWarning {
             message: format!("service '{}' has no 'publish as' declaration", service.name),
+            span: None,
         });
     }
 
@@ -414,6 +421,7 @@ fn check_service(
                                     cmd.params.len(),
                                     method_info.param_count
                                 ),
+                                span: None,
                             });
                         }
                     }
@@ -443,6 +451,7 @@ fn check_service(
                                      via 'via'/'observe' or have [visible] annotation on port method",
                                     q.name, service.name
                                 ),
+                                span: None,
                             });
                         }
                     }
@@ -461,6 +470,7 @@ fn check_service(
                                     q.params.len(),
                                     method_info.param_count
                                 ),
+                                span: None,
                             });
                         }
                     }
@@ -473,6 +483,7 @@ fn check_service(
                             "replication factor in service '{}' must be greater than 0",
                             service.name
                         ),
+                        span: None,
                     });
                 }
             }
@@ -504,6 +515,7 @@ fn check_service(
                                      requires @delegate qualifier (service is replicated)",
                                     param.name, port_name, service.name, method_name
                                 ),
+                                span: Some(param.ty.span),
                             });
                         } else {
                             errors.push(TypeCheckError {
@@ -512,6 +524,7 @@ fn check_service(
                                      requires an authority qualifier (@consume, @borrow, or @delegate)",
                                     param.name, port_name, service.name, method_name
                                 ),
+                                span: Some(param.ty.span),
                             });
                         }
                     }
@@ -546,6 +559,7 @@ fn check_service(
                                     event_type,
                                     service_emits.iter().cloned().collect::<Vec<_>>().join(", ")
                                 ),
+                                span: None,
                             });
                         }
                     }
@@ -645,6 +659,7 @@ fn check_event_ref(
                         event_ref.event,
                         substrate_info.emits.join(", ")
                     ),
+                    span: None,
                 });
             }
         }
@@ -664,6 +679,7 @@ fn check_event_ref(
                     available.iter().map(|s| s.as_str()).collect::<Vec<_>>().join(", ")
                 }
             ),
+            span: None,
         });
     }
 }
@@ -726,6 +742,7 @@ fn check_expr_resolves(expr: &Expr, env: &TypeEnv, errors: &mut Vec<TypeCheckErr
             {
                 errors.push(TypeCheckError {
                     message: format!("resolve references undeclared port '{port}'"),
+                    span: None,
                 });
             }
         }
@@ -800,12 +817,14 @@ fn check_expr_resolves(expr: &Expr, env: &TypeEnv, errors: &mut Vec<TypeCheckErr
                     message: "dynamic import path should be a string literal for static validation; \
                               use static imports for full type safety"
                         .to_string(),
+                    span: None,
                 });
             } else {
                 warnings.push(TypeWarning {
                     message: "dynamic import types are not statically checked; \
                               use static imports for full type safety"
                         .to_string(),
+                    span: None,
                 });
             }
         }
@@ -859,6 +878,7 @@ fn check_entry(entry: &EntryDecl, env: &TypeEnv, errors: &mut Vec<TypeCheckError
                              (@consume, @borrow, or @delegate)",
                             param.name, port_name
                         ),
+                        span: Some(param.ty.span),
                     });
                 }
             }
@@ -868,6 +888,7 @@ fn check_entry(entry: &EntryDecl, env: &TypeEnv, errors: &mut Vec<TypeCheckError
                         "entry parameter '{}' is a value type; consider using 'cap' for capabilities",
                         param.name
                     ),
+                    span: Some(param.ty.span),
                 });
             }
         }
@@ -886,7 +907,7 @@ fn check_fn(f: &FnDecl, env: &TypeEnv, errors: &mut Vec<TypeCheckError>, warning
             check_purity_stmt(&stmt.node, &f.name, &mut purity_errors);
         }
         for msg in purity_errors {
-            errors.push(TypeCheckError { message: msg });
+            errors.push(TypeCheckError { message: msg, span: None });
         }
     }
     // Walk function body for resolve/import checks
@@ -932,6 +953,7 @@ fn check_guarantee(
                         event_type,
                         all_emits.iter().cloned().collect::<Vec<_>>().join(", ")
                     ),
+                    span: None,
                 });
             }
         }
@@ -1010,6 +1032,7 @@ fn check_type_expr_arity(
                             "type '{}' expects {} type parameter(s) but got {}",
                             name, type_info.type_param_count, type_args.len()
                         ),
+                        span: None,
                     });
                 }
             }
@@ -1352,6 +1375,7 @@ fn dfs_cycle_check(
                         cycle.join(" -> "),
                         next
                     ),
+                    span: None,
                 });
             } else if !visited.contains(next) {
                 dfs_cycle_check(next, adj, visited, in_stack, path, errors);
@@ -1531,6 +1555,7 @@ fn check_profile_refs_in_expr(expr: &Expr, profiles: &HashSet<String>, errors: &
                                 profiles.iter().cloned().collect::<Vec<_>>().join(", ")
                             }
                         ),
+                        span: None,
                     });
                 }
             }
@@ -1563,6 +1588,7 @@ fn check_duplicate_profiles(program: &Program, errors: &mut Vec<TypeCheckError>)
             if !seen.insert(p.name.clone()) {
                 errors.push(TypeCheckError {
                     message: format!("duplicate profile declaration: '{}'", p.name),
+                    span: None,
                 });
             }
         }
@@ -1681,6 +1707,7 @@ fn collect_resolve_ids_expr(expr: &Expr, publish_ids: &HashSet<String>, warnings
                              ensure the service is available at runtime",
                             port, id
                         ),
+                        span: None,
                     });
                 }
             }

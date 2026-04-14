@@ -1,4 +1,4 @@
-use crate::lexer::span::Spanned;
+use crate::lexer::span::{Span, Spanned};
 
 #[derive(Debug, Clone)]
 pub struct Program {
@@ -38,6 +38,7 @@ pub enum Item {
 pub struct PortDecl {
     pub exported: bool,
     pub name: String,
+    pub name_span: Span,
     pub methods: Vec<Spanned<PortMethod>>,
 }
 
@@ -59,6 +60,7 @@ pub struct Annotation {
 pub struct ServiceDecl {
     pub exported: bool,
     pub name: String,
+    pub name_span: Span,
     pub provides: String,
     pub items: Vec<Spanned<ServiceItem>>,
 }
@@ -137,6 +139,7 @@ pub struct ComponentDecl {
 #[derive(Debug, Clone)]
 pub struct EntryDecl {
     pub name: Option<String>,
+    pub name_span: Span,
     pub params: Vec<Param>,
     pub body: Vec<Spanned<Stmt>>,
 }
@@ -151,6 +154,7 @@ pub struct Param {
 pub struct TypeDecl {
     pub exported: bool,
     pub name: String,
+    pub name_span: Span,
     pub type_params: Vec<String>,
     pub fields: Vec<Field>,
 }
@@ -164,6 +168,7 @@ pub struct Field {
 #[derive(Debug, Clone)]
 pub struct FnDecl {
     pub name: String,
+    pub name_span: Span,
     pub params: Vec<Param>,
     pub return_type: Option<Spanned<TypeExpr>>,
     pub body: Vec<Spanned<Stmt>>,
@@ -179,6 +184,7 @@ pub struct SubstrateDep {
 #[derive(Debug, Clone)]
 pub struct SubstrateDecl {
     pub name: String,
+    pub name_span: Span,
     pub type_params: Vec<String>,
     pub ops: Vec<SubstrateOp>,
     pub emits: Vec<EmitEvent>,
@@ -220,6 +226,7 @@ pub struct EmitEvent {
 #[derive(Debug, Clone)]
 pub struct GuaranteeDecl {
     pub name: String,
+    pub name_span: Span,
     pub laws: Vec<LawDecl>,
 }
 
@@ -451,12 +458,14 @@ pub enum BinaryOp {
 #[derive(Debug, Clone)]
 pub struct ProfileDecl {
     pub name: String,
+    pub name_span: Span,
     pub preferences: Vec<(String, String)>,
 }
 
 #[derive(Debug, Clone)]
 pub struct MacroDecl {
     pub name: String,
+    pub name_span: Span,
     pub params: Vec<MacroParam>,
     pub body: Vec<Spanned<Stmt>>,
 }

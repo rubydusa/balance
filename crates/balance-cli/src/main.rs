@@ -122,6 +122,8 @@ enum Commands {
     },
     /// Start an interactive REPL
     Repl,
+    /// Run the Balance LSP server over stdio
+    Lsp,
 }
 
 fn read_and_parse(file: &str) -> (String, balance_lang::ast::Program) {
@@ -851,6 +853,9 @@ async fn main() {
                     Err(e) => eprintln!("error: {e}"),
                 }
             }
+        }
+        Commands::Lsp => {
+            balance_lsp::run().await;
         }
     }
 }

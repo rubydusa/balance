@@ -316,6 +316,7 @@ impl<'a> Parser<'a> {
         Ok(PortDecl {
             exported,
             name,
+            name_span,
             methods,
         })
     }
@@ -392,6 +393,7 @@ impl<'a> Parser<'a> {
         Ok(ServiceDecl {
             exported,
             name,
+            name_span,
             provides,
             items,
         })
@@ -574,18 +576,18 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_entry_decl(&mut self) -> Result<EntryDecl, ParseError> {
-        self.expect(Token::Entry)?;
-        let name = if self.check(&Token::Ident) {
+        let entry_kw = self.expect(Token::Entry)?;
+        let (name, name_span) = if self.check(&Token::Ident) {
             let span = self.advance().span;
-            Some(self.text_of(span).to_string())
+            (Some(self.text_of(span).to_string()), span)
         } else {
-            None
+            (None, entry_kw)
         };
         self.expect(Token::LParen)?;
         let params = self.parse_param_list()?;
         self.expect(Token::RParen)?;
         let body = self.parse_block()?;
-        Ok(EntryDecl { name, params, body })
+        Ok(EntryDecl { name, name_span, params, body })
     }
 
     fn parse_type_decl(&mut self, exported: bool) -> Result<TypeDecl, ParseError> {
@@ -619,6 +621,7 @@ impl<'a> Parser<'a> {
         Ok(TypeDecl {
             exported,
             name,
+            name_span,
             type_params,
             fields,
         })
@@ -645,6 +648,7 @@ impl<'a> Parser<'a> {
         let body = self.parse_block()?;
         Ok(FnDecl {
             name,
+            name_span,
             params,
             return_type,
             body,
@@ -794,6 +798,7 @@ impl<'a> Parser<'a> {
 
         Ok(SubstrateDecl {
             name,
+            name_span,
             type_params,
             ops,
             emits,
@@ -862,7 +867,7 @@ impl<'a> Parser<'a> {
         }
         self.expect(Token::RBrace)?;
 
-        Ok(GuaranteeDecl { name, laws })
+        Ok(GuaranteeDecl { name, name_span, laws })
     }
 
     fn parse_param_list(&mut self) -> Result<Vec<Param>, ParseError> {
@@ -1740,7 +1745,7 @@ impl<'a> Parser<'a> {
         }
         self.expect(Token::RBrace)?;
 
-        Ok(ProfileDecl { name, preferences })
+        Ok(ProfileDecl { name, name_span, preferences })
     }
 
     fn parse_macro_decl(&mut self) -> Result<MacroDecl, ParseError> {
@@ -1778,7 +1783,7 @@ impl<'a> Parser<'a> {
         self.expect(Token::RParen)?;
 
         let body = self.parse_block()?;
-        Ok(MacroDecl { name, params, body })
+        Ok(MacroDecl { name, name_span, params, body })
     }
 
     fn parse_arg_list(&mut self) -> Result<Vec<Spanned<Expr>>, ParseError> {

@@ -1,0 +1,11 @@
+[package]
+name = "balance-lsp"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+balance-lang = { path = "../balance-lang" }
+tower-lsp = "0.20"
+tokio = { version = "1", features = ["rt-multi-thread", "io-std", "macros", "sync"] }
+dashmap = "6"
+serde_json = "1"

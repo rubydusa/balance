@@ -180,6 +180,7 @@ fn authority_compatible(
 #[derive(Debug)]
 pub struct TypeError {
     pub message: String,
+    pub span: Option<crate::lexer::span::Span>,
 }
 
 /// Unify two types, updating the substitution.
@@ -206,6 +207,7 @@ pub fn unify(t1: &Type, t2: &Type, subst: &mut Substitution) -> Result<(), TypeE
                         "capability authority mismatch for port '{}': {:?} vs {:?}",
                         a, qa, qb
                     ),
+                    span: None,
                 })
             }
         }
@@ -217,6 +219,7 @@ pub fn unify(t1: &Type, t2: &Type, subst: &mut Substitution) -> Result<(), TypeE
             if occurs_check(tv, &t2) {
                 return Err(TypeError {
                     message: format!("infinite type: {tv} ~ {t2}"),
+                    span: None,
                 });
             }
             subst.bind(*tv, t2);
@@ -226,6 +229,7 @@ pub fn unify(t1: &Type, t2: &Type, subst: &mut Substitution) -> Result<(), TypeE
             if occurs_check(tv, &t1) {
                 return Err(TypeError {
                     message: format!("infinite type: {tv} ~ {t1}"),
+                    span: None,
                 });
             }
             subst.bind(*tv, t1);
@@ -240,6 +244,7 @@ pub fn unify(t1: &Type, t2: &Type, subst: &mut Substitution) -> Result<(), TypeE
                         p1.len(),
                         p2.len()
                     ),
+                    span: None,
                 });
             }
             for (a, b) in p1.iter().zip(p2.iter()) {
@@ -276,6 +281,7 @@ pub fn unify(t1: &Type, t2: &Type, subst: &mut Substitution) -> Result<(), TypeE
                     Some((_, ty2)) => unify(ty1, ty2, subst)?,
                     None => return Err(TypeError {
                         message: format!("struct '{}' missing field '{}'", n1, name),
+                        span: None,
                     }),
                 }
             }
@@ -284,6 +290,7 @@ pub fn unify(t1: &Type, t2: &Type, subst: &mut Substitution) -> Result<(), TypeE
         // Mismatch
         _ => Err(TypeError {
             message: format!("type mismatch: {t1} vs {t2}"),
+            span: None,
         }),
     }
 }
@@ -480,6 +487,7 @@ pub fn infer_expr(
             .cloned()
             .ok_or_else(|| TypeError {
                 message: format!("undefined variable '{name}'"),
+                span: None,
             }),
         Expr::Resolve { port, .. } => Ok(Type::Cap(port.clone(), None)),
         Expr::MethodCall {
@@ -610,6 +618,7 @@ pub fn infer_expr(
                 if let Some(exports) = env.module_exports.get(name) {
                     return exports.get(field).cloned().ok_or_else(|| TypeError {
                         message: format!("module '{}' has no exported member '{}'", name, field),
+                        span: None,
                     });
                 }
             }
@@ -623,6 +632,7 @@ pub fn infer_expr(
                         .map(|(_, t)| t.clone())
                         .ok_or_else(|| TypeError {
                             message: format!("no field '{field}' on struct"),
+                            span: None,
                         })
                 }
                 Type::Observed(value_ty, frontier_ty) => {
@@ -631,6 +641,7 @@ pub fn infer_expr(
                         "frontier" => Ok(*frontier_ty.clone()),
                         _ => Err(TypeError {
                             message: format!("no field '{field}' on Observed"),
+                            span: None,
                         }),
                     }
                 }
@@ -667,6 +678,7 @@ pub fn infer_expr(
                                 params.len(),
                                 args.len()
                             ),
+                            span: None,
                         });
                     }
                     // Unify arg types with param types
@@ -683,6 +695,7 @@ pub fn infer_expr(
                             "capability type '{}' cannot be constructed directly; use 'resolve {}[\"...\"]'",
                             name, name
                         ),
+                        span: None,
                     });
                 }
             }
@@ -698,6 +711,7 @@ pub fn infer_expr(
                                 param_types.len(),
                                 args.len()
                             ),
+                            span: None,
                         });
                     }
                     for (arg, param_ty) in args.iter().zip(param_types.iter()) {
@@ -1226,6 +1240,7 @@ fn infer_program_inner(
                                     apply(subst, &body_ty),
                                     e.message
                                 ),
+                                span: None,
                             });
                         }
                     }
